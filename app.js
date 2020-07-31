@@ -1,5 +1,44 @@
 $(document).ready(() => {
   // var api_key = 1f826683-3cac-4731-b48f-ee077a45a969;
+  $.ajax({
+    type: "GET",
+    url: `http://api.511.org/transit/lines?api_key=4f536c63-2e63-429d-9261-fb091e63e5f8&Operator_id=SF`,
+    dataType: "json",
+  })
+    .then((res) => {
+      var tableData = res;
+      console.log(tableData);
+
+      var table = new Tabulator("#example-table", {
+        data: tableData,
+        height: 205, // set height of table (in CSS or here), this enables the Virtual DOM and improves render speed dramatically (can be any valid css height value)
+        layout: "fitColumns", //fit columns to width of table (optional)
+        placeholder: "No data set",
+        columns: [
+          //Define Table Columns
+          { title: "Name", field: "Name" },
+          {
+            title: "Bus Name",
+            field: "Id",
+            align: "center",
+          },
+          { title: "Favourite Color", field: "col" },
+          {
+            title: "Date Of Birth",
+            field: "dob",
+            sorter: "date",
+            align: "center",
+          },
+        ],
+        rowClick: function (e, row) {
+          //trigger an alert message when the row is clicked
+          alert("Row " + row.getData().Id + " Clicked!!!!");
+        },
+      });
+    })
+    .catch((err) => {
+      if (err) throw err;
+    });
 
   // $.ajax({
   //   type: "GET",
@@ -22,19 +61,6 @@ $(document).ready(() => {
   //   },
   // });
 
-  // $.ajax({
-  //   type: "GET",
-  //   url: `http://api.511.org/transit/lines?api_key=4f536c63-2e63-429d-9261-fb091e63e5f8&line_id=24`,
-  //   dataType: "json",
-  //   success: (res) => {
-  //     if (!res) {
-  //       console.log("no worky");
-  //     } else {
-  //       console.log(res);
-  //     }
-  //   },
-  // });
-
   // various stops of the bus
   $.ajax({
     type: "GET",
@@ -46,25 +72,13 @@ $(document).ready(() => {
       } else {
         var routeArr = res.Contents.dataObjects.ScheduledStopPoint;
         for (let i = 0; i < routeArr.length; i++) {
-          console.log(routeArr[i]);
+          // console.log(routeArr[i]);
         }
       }
     },
   });
 
   // various lines/buses that run
-  $.ajax({
-    type: "GET",
-    url: `http://api.511.org/transit/lines?api_key=4f536c63-2e63-429d-9261-fb091e63e5f8&Operator_id=SF`,
-    dataType: "json",
-    success: (res) => {
-      if (!res) {
-        console.log("no worky");
-      } else {
-        console.log(res);
-      }
-    },
-  });
   $.ajax({
     type: "GET",
     url: `http://api.511.org/transit/operators?api_key=4f536c63-2e63-429d-9261-fb091e63e5f8`,
@@ -143,51 +157,35 @@ $(document).ready(() => {
 //   ],
 // });
 
-var table = new Tabulator("#example-table", {
-  height: 205, // set height of table (in CSS or here), this enables the Virtual DOM and improves render speed dramatically (can be any valid css height value)
-  layout: "fitColumns", //fit columns to width of table (optional)
-  columns: [
-    //Define Table Columns
-    { title: "Name", field: "name", width: 125 },
-    { title: "Age", field: "age", align: "left", formatter: "progress" },
-    { title: "Favourite Color", field: "col" },
-    { title: "Date Of Birth", field: "dob", sorter: "date", align: "center" },
-  ],
-  rowClick: function (e, row) {
-    //trigger an alert message when the row is clicked
-    alert("Row " + row.getData().id + " Clicked!!!!");
-  },
-});
-
 //define some sample data
-var tabledata = [
-  { id: 1, name: "Oli Bob", age: "12", col: "red", dob: "" },
-  { id: 2, name: "Mary May", age: "1", col: "blue", dob: "14/05/1982" },
-  {
-    id: 3,
-    name: "Christine Lobowski",
-    age: "42",
-    col: "green",
-    dob: "22/05/1982",
-  },
-  {
-    id: 4,
-    name: "Brendon Philips",
-    age: "125",
-    col: "orange",
-    dob: "01/08/1980",
-  },
-  {
-    id: 5,
-    name: "Margret Marmajuke",
-    age: "16",
-    col: "yellow",
-    dob: "31/01/1999",
-  },
-];
+// var tabledata = [
+//   { id: 1, name: "Oli Bob", age: "12", col: "red", dob: "" },
+//   { id: 2, name: "Mary May", age: "1", col: "blue", dob: "14/05/1982" },
+//   {
+//     id: 3,
+//     name: "Christine Lobowski",
+//     age: "42",
+//     col: "green",
+//     dob: "22/05/1982",
+//   },
+//   {
+//     id: 4,
+//     name: "Brendon Philips",
+//     age: "125",
+//     col: "orange",
+//     dob: "01/08/1980",
+//   },
+//   {
+//     id: 5,
+//     name: "Margret Marmajuke",
+//     age: "16",
+//     col: "yellow",
+//     dob: "31/01/1999",
+//   },
+// ];
 
 //load sample data into the table
-table.setData(tabledata);
+// table.setData(tabledata);
 
 // top menu , side nav bar -->
 // google maps and tables onto the page
