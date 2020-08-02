@@ -1,85 +1,180 @@
 $(document).ready(() => {
-  // var api_key = 1f826683-3cac-4731-b48f-ee077a45a969;
-
+  initMap();
   $.ajax({
     type: "GET",
     url: `http://api.511.org/transit/operators?api_key=4f536c63-2e63-429d-9261-fb091e63e5f8`,
     dataType: "json",
   })
-    .then((res) => {
+    .then((operator) => {
       // appends options with operator values to the html
-      for (let i = 0; i < res.length; i++) {
+      for (let i = 0; i < operator.length; i++) {
         $("#operators").append(
-          `<option value="${res[i].Id}">${res[i].Name}</option>`
+          `<option value="${operator[i].Id}">${operator[i].Name}</option>`
         );
       }
       // displays val of options used for next AJAX
       $("#operators").on("change", function optionVal() {
-        var val = $(this).val();
-        console.log(val);
-
-        // takes let val and uses for the next AJAX request
+        var operatorVal = $(this).val();
+        console.log(operatorVal);
+        // function fetchdata() {
         $.ajax({
           type: "GET",
-          url: `http://api.511.org/transit/lines?api_key=4f536c63-2e63-429d-9261-fb091e63e5f8&Operator_id=${val}`,
+          url: `http://api.511.org/transit/VehicleMonitoring?api_key=4f536c63-2e63-429d-9261-fb091e63e5f8&agency=${operatorVal}`,
           dataType: "json",
-        }).then((res) => {
-          var tableData = res;
-          console.log(tableData);
+        }).then((vehicleInfo) => {
+          if (vehicleInfo) {
+            console.log(vehicleInfo);
+            var vehicleArr = [];
+            var vehicleObj;
+            var vehicleInfoAbb =
+              vehicleInfo.Siri.ServiceDelivery.VehicleMonitoringDelivery
+                .VehicleActivity;
+            console.log(vehicleInfoAbb);
+            for (var i = 0; i < vehicleInfoAbb.length; i++) {
+              vehicleObj = {};
 
-          var table = new Tabulator("#example-table", {
-            data: tableData,
-            height: 205, // set height of table (in CSS or here), this enables the Virtual DOM and improves render speed dramatically (can be any valid css height value)
-            layout: "fitColumns", //fit columns to width of table (optional)
-            placeholder: "No data set",
-            columns: [
-              //Define Table Columns
-              { title: "Name", field: "Name" },
-              {
-                title: "Bus Name",
-                field: "Id",
-                align: "center",
-              },
-              { title: "Favourite Color", field: "col" },
-              {
-                title: "Date Of Birth",
-                field: "dob",
-                sorter: "date",
-                align: "center",
-              },
-            ],
-            // identify row clicked and runs another AJAX to find route
-            rowClick: function (e, row) {
-              $.ajax({
-                type: "GET",
-                url: `http://api.511.org/transit/stops?api_key=4f536c63-2e63-429d-9261-fb091e63e5f8&operator_id=${val}&line_id=${
-                  row.getData().Id
-                }`,
-                dataType: "json",
-                success: (res) => {
-                  if (!res) {
-                    console.log("no worky");
-                  } else {
-                    var routeArr = res.Contents.dataObjects.ScheduledStopPoint;
-                    console.log(routeArr[0]);
-                    console.log(routeArr[routeArr.length - 1]);
-                    // console.log(routeArr.length - 1);
+              var lat2 =
+                vehicleInfoAbb[i].MonitoredVehicleJourney.VehicleLocation
+                  .Latitude;
+              var lon2 =
+                vehicleInfoAbb[i].MonitoredVehicleJourney.VehicleLocation
+                  .Longitude;
 
-                    // for (let i = 0; i < routeArr.length; i++) {
-                    //   console.log(routeArr[i]);
-                    // }
-                  }
+              // distance equation
+              function calcCrow(lat1, lon1, lat2, lon2) {
+                var R = 6371; // km
+                var dLat = toRad(lat2 - lat1);
+                var dLon = toRad(lon2 - lon1);
+                var lat1 = toRad(lat1);
+                var lat2 = toRad(lat2);
+
+                var a =
+                  Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+                  Math.sin(dLon / 2) *
+                    Math.sin(dLon / 2) *
+                    Math.cos(lat1) *
+                    Math.cos(lat2);
+                var c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+                var d = R * c;
+                return d;
+              }
+
+              // Converts numeric degrees to radians
+              function toRad(Value) {
+                return (Value * Math.PI) / 180;
+              }
+
+              vehicleObj["id"] =
+                vehicleInfoAbb[i].MonitoredVehicleJourney.LineRef;
+              vehicleObj["location"] =
+                vehicleInfoAbb[i].MonitoredVehicleJourney.VehicleLocation;
+              vehicleObj["destination"] =
+                vehicleInfoAbb[i].MonitoredVehicleJourney.DestinationName;
+              vehicleObj["direction"] =
+                vehicleInfoAbb[i].MonitoredVehicleJourney.DirectionRef;
+              vehicleArr.push(vehicleObj);
+            }
+            console.log(vehicleArr);
+
+            // // need else to catch the err or operators without lines running at this time
+            var table = new Tabulator("#example-table", {
+              data: vehicleArr,
+              height: 205, // set height of table (in CSS or here), this enables the Virtual DOM and improves render speed dramatically (can be any valid css height value)
+              layout: "fitColumns", //fit columns to width of table (optional)
+              placeholder: "No data set",
+              columns: [
+                //Define Table Columns
+                { title: "Name", field: "destination" },
+                {
+                  title: "Bus Name",
+                  field: "id",
+                  align: "center",
                 },
-              });
-            },
-          });
+                { title: "Direction", field: "direction" },
+                {
+                  title: "Date Of Birth",
+                  field: "dob",
+                  sorter: "date",
+                  align: "center",
+                },
+              ],
+              // identify row clicked and runs another AJAX to find route
+              rowClick: function (e, row) {
+                console.log(row._row.data.id);
+                $.ajax({
+                  type: "GET",
+                  url: `http://api.511.org/transit/stops?api_key=4f536c63-2e63-429d-9261-fb091e63e5f8&operator_id=${operatorVal}&line_id=${
+                    row.getData().id
+                  }`,
+                  dataType: "json",
+                  success: (routeData) => {
+                    if (!routeData) {
+                      console.log("no worky");
+                    } else {
+                      // takes the routes api and shows each point in which it'll stop
+                      var routeArr =
+                        routeData.Contents.dataObjects.ScheduledStopPoint;
+                      var originLat = JSON.parse(routeArr[0].Location.Latitude);
+                      var originLng = JSON.parse(
+                        routeArr[0].Location.Longitude
+                      );
+                      var destinationLat = JSON.parse(
+                        routeArr[routeArr.length - 1].Location.Latitude
+                      );
+                      var destinationLng = JSON.parse(
+                        routeArr[routeArr.length - 1].Location.Longitude
+                      );
+                      console.log(originLat, destinationLat);
+
+                      function initMap() {
+                        // Create the map.
+                        const map = new google.maps.Map(
+                          document.getElementById("map"),
+                          {
+                            zoom: 15,
+                            center: { lat: 37.7749, lng: -122.4194 }, // SF
+                          }
+                        );
+                        console.log(routeArr);
+                        var routeObj;
+                        for (let i = 0; i < routeArr.length; i++) {
+                          routeObj = {};
+                          routeObj["lat"] = JSON.parse(
+                            routeArr[i].Location.Latitude
+                          );
+                          routeObj["lng"] = JSON.parse(
+                            routeArr[i].Location.Longitude
+                          );
+                          console.log(routeObj);
+                          const cityCircle = new google.maps.Circle({
+                            strokeColor: "#000",
+                            strokeOpacity: 0.8,
+                            strokeWeight: 2,
+                            fillColor: "#FFF",
+                            fillOpacity: 0.35,
+                            map,
+                            center: routeObj[i],
+                            radius: 1000,
+                          });
+                        }
+                      }
+                      initMap(routeArr);
+                    }
+                  },
+                });
+              },
+            });
+          }
         });
+        // }
+        // setInterval(fetchdata, 2000);
       });
     })
     .catch((err) => {
       if (err) throw err;
     });
 });
+
 // $.ajax({
 //   type: "GET",
 //   url: `http://api.511.org/transit/StopMonitoring?api_key=4f536c63-2e63-429d-9261-fb091e63e5f8&agency=SF`,
@@ -101,131 +196,8 @@ $(document).ready(() => {
 //   },
 // });
 
-// various stops of the bus
-// $.ajax({
-//   type: "GET",
-//   url: `http://api.511.org/transit/stops?api_key=4f536c63-2e63-429d-9261-fb091e63e5f8&operator_id=SF&line_id=43`,
-//   dataType: "json",
-//   success: (res) => {
-//     if (!res) {
-//       console.log("no worky");
-//     } else {
-//       var routeArr = res.Contents.dataObjects.ScheduledStopPoint;
-//       for (let i = 0; i < routeArr.length; i++) {
-//         // console.log(routeArr[i]);
-//       }
-//     }
-//   },
-// });
-
-// various lines/buses that run
-//   $.ajax({
-//     type: "GET",
-//     url: `http://api.511.org/transit/operators?api_key=4f536c63-2e63-429d-9261-fb091e63e5f8`,
-//     dataType: "json",
-//     success: (res) => {
-//       if (!res) {
-//         console.log("no worky");
-//       } else {
-//         console.log(res);
-//       }
-//     },
-//   });
-// });
-
-// var table = new Tabulator("#example-table", {
-//   height: "800px",
-//   layout: "fitColumns", // column size will be adjusted automatically to width
-//   paginationSize: 20, // amt of rows
-//   placeholder: "No Data Set",
-//   columns: [
-//     { title: "Id", field: "galleryId", sorter: "number", width: 10 }, // sorter: dataType, width: in %
-//     { title: "Title", field: "title", sorter: "string" }, // title property is what's being
-//     {
-//       title: "Active",
-//       field: "isActive",
-//       align: "center",
-//       formatter: "tickCross",
-//       sorter: "boolean",
-//     }, // formatter: tick or cross
-//     {
-//       title: "Featured",
-//       field: "isFeatured",
-//       align: "center",
-//       formatter: "tickCross",
-//       sorter: "boolean",
-//     },
-//     {
-//       title: "Created",
-//       field: "timeCreated",
-//       sorter: "data",
-//       align: "center",
-//       formatter: (cell) => {
-//         var convertTime = new Date(cell.getValue().UTCString()); // getValue() method from tabulator
-//         return convertTime;
-//       },
-//     },
-//     {
-//       title: "Updated",
-//       field: "lastUpdated",
-//       sorter: "data",
-//       align: "center",
-//       formatter: (cell) => {
-//         var conTime = new Date(cell.getValue().UTCString()); // getValue() method from tabulator
-//         return conTime;
-//       },
-//     },
-//     { title: "Username", field: "username", sorter: "string", align: "center" },
-//     { title: "Type", field: "galleryType", sorter: "string", align: "center" },
-//     {
-//       title: "Actions",
-//       sortable: false, // sortable: unable to be sorted
-//       align: "center",
-//       formatter: (cell) => {
-//         // everytime formatter is used, have to return some value
-//         // cells are used to store the data
-//         var galId = cell.getData().galleryId;
-//         var galTitle = cell.getData().title;
-//         var active = cell.getData().isActive;
-//         var featured = cell.getData().isFeatured;
-//         var created = cell.getData().timeCreated;
-//         var lastUpdated = cell.getData().lastUpdated;
-//         var username = cell.getData().username;
-//         var galleryType = cell.getData().galleryType;
-//       },
-//     },
-//   ],
-// });
-
-//define some sample data
-// var tabledata = [
-//   { id: 1, name: "Oli Bob", age: "12", col: "red", dob: "" },
-//   { id: 2, name: "Mary May", age: "1", col: "blue", dob: "14/05/1982" },
-//   {
-//     id: 3,
-//     name: "Christine Lobowski",
-//     age: "42",
-//     col: "green",
-//     dob: "22/05/1982",
-//   },
-//   {
-//     id: 4,
-//     name: "Brendon Philips",
-//     age: "125",
-//     col: "orange",
-//     dob: "01/08/1980",
-//   },
-//   {
-//     id: 5,
-//     name: "Margret Marmajuke",
-//     age: "16",
-//     col: "yellow",
-//     dob: "31/01/1999",
-//   },
-// ];
-
 //load sample data into the table
-// table.setData(tabledata);
+// table.setData(lineData);
 
 // top menu , side nav bar -->
 // google maps and tables onto the page
