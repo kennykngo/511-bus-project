@@ -1,5 +1,4 @@
 $(document).ready(() => {
-  initMap();
   $.ajax({
     type: "GET",
     url: `http://api.511.org/transit/operators?api_key=4f536c63-2e63-429d-9261-fb091e63e5f8`,
@@ -23,58 +22,40 @@ $(document).ready(() => {
           dataType: "json",
         }).then((vehicleInfo) => {
           if (vehicleInfo) {
-            console.log(vehicleInfo);
+            // console.log(vehicleInfo);
             var vehicleArr = [];
             var vehicleObj;
+            var vehicleLocation;
             var vehicleInfoAbb =
               vehicleInfo.Siri.ServiceDelivery.VehicleMonitoringDelivery
                 .VehicleActivity;
-            console.log(vehicleInfoAbb);
+            // console.log(vehicleInfoAbb);
             for (var i = 0; i < vehicleInfoAbb.length; i++) {
               vehicleObj = {};
+              vehicleLocation = {};
 
-              var lat2 =
-                vehicleInfoAbb[i].MonitoredVehicleJourney.VehicleLocation
-                  .Latitude;
-              var lon2 =
-                vehicleInfoAbb[i].MonitoredVehicleJourney.VehicleLocation
-                  .Longitude;
-
-              // distance equation
-              function calcCrow(lat1, lon1, lat2, lon2) {
-                var R = 6371; // km
-                var dLat = toRad(lat2 - lat1);
-                var dLon = toRad(lon2 - lon1);
-                var lat1 = toRad(lat1);
-                var lat2 = toRad(lat2);
-
-                var a =
-                  Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-                  Math.sin(dLon / 2) *
-                    Math.sin(dLon / 2) *
-                    Math.cos(lat1) *
-                    Math.cos(lat2);
-                var c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-                var d = R * c;
-                return d;
-              }
-
-              // Converts numeric degrees to radians
-              function toRad(Value) {
-                return (Value * Math.PI) / 180;
-              }
-
+              vehicleObj["stopname"] =
+                vehicleInfoAbb[
+                  i
+                ].MonitoredVehicleJourney.MonitoredCall.StopPointName;
               vehicleObj["id"] =
                 vehicleInfoAbb[i].MonitoredVehicleJourney.LineRef;
-              vehicleObj["location"] =
-                vehicleInfoAbb[i].MonitoredVehicleJourney.VehicleLocation;
+              vehicleLocation["lat"] = JSON.parse(
+                vehicleInfoAbb[i].MonitoredVehicleJourney.VehicleLocation
+                  .Latitude
+              );
+              vehicleLocation["lng"] = JSON.parse(
+                vehicleInfoAbb[i].MonitoredVehicleJourney.VehicleLocation
+                  .Longitude
+              );
+              vehicleObj["location"] = vehicleLocation;
+              // console.log(vehicleLocation);
               vehicleObj["destination"] =
                 vehicleInfoAbb[i].MonitoredVehicleJourney.DestinationName;
               vehicleObj["direction"] =
                 vehicleInfoAbb[i].MonitoredVehicleJourney.DirectionRef;
               vehicleArr.push(vehicleObj);
             }
-            console.log(vehicleArr);
 
             // // need else to catch the err or operators without lines running at this time
             var table = new Tabulator("#example-table", {
@@ -90,17 +71,17 @@ $(document).ready(() => {
                   field: "id",
                   align: "center",
                 },
-                { title: "Direction", field: "direction" },
                 {
-                  title: "Date Of Birth",
-                  field: "dob",
-                  sorter: "date",
+                  title: "Stop Name",
+                  field: "stopname",
                   align: "center",
                 },
+                { title: "Direction", field: "direction" },
               ],
               // identify row clicked and runs another AJAX to find route
               rowClick: function (e, row) {
                 console.log(row._row.data.id);
+                var currentVehicleLocation = row._row.data.location;
                 $.ajax({
                   type: "GET",
                   url: `http://api.511.org/transit/stops?api_key=4f536c63-2e63-429d-9261-fb091e63e5f8&operator_id=${operatorVal}&line_id=${
@@ -112,6 +93,32 @@ $(document).ready(() => {
                       console.log("no worky");
                     } else {
                       // takes the routes api and shows each point in which it'll stop
+
+                      console.log(row._row.data.location);
+                      // distance equation
+                      function calcCrow(lat1, lon1, lat2, lon2) {
+                        var R = 6371; // km
+                        var dLat = toRad(lat2 - lat1);
+                        var dLon = toRad(lon2 - lon1);
+                        var lat1 = toRad(lat1);
+                        var lat2 = toRad(lat2);
+
+                        var a =
+                          Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+                          Math.sin(dLon / 2) *
+                            Math.sin(dLon / 2) *
+                            Math.cos(lat1) *
+                            Math.cos(lat2);
+                        var c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+                        var d = R * c;
+                        return d;
+                      }
+
+                      // Converts numeric degrees to radians
+                      function toRad(Value) {
+                        return (Value * Math.PI) / 180;
+                      }
+
                       var routeArr =
                         routeData.Contents.dataObjects.ScheduledStopPoint;
                       var originLat = JSON.parse(routeArr[0].Location.Latitude);
@@ -124,7 +131,6 @@ $(document).ready(() => {
                       var destinationLng = JSON.parse(
                         routeArr[routeArr.length - 1].Location.Longitude
                       );
-                      console.log(originLat, destinationLat);
 
                       function initMap() {
                         // Create the map.
@@ -132,11 +138,20 @@ $(document).ready(() => {
                           document.getElementById("map"),
                           {
                             zoom: 15,
-                            center: { lat: 37.7749, lng: -122.4194 }, // SF
+                            center: currentVehicleLocation,
                           }
                         );
                         console.log(routeArr);
                         var routeObj;
+                        var routeArrComplete = [];
+
+                        // // marker
+                        // new google.maps.Marker({
+                        //   position: vehicleObj.location,
+                        //   map,
+                        //   title: "Hello World!",
+                        // });
+
                         for (let i = 0; i < routeArr.length; i++) {
                           routeObj = {};
                           routeObj["lat"] = JSON.parse(
@@ -145,18 +160,31 @@ $(document).ready(() => {
                           routeObj["lng"] = JSON.parse(
                             routeArr[i].Location.Longitude
                           );
-                          console.log(routeObj);
-                          const cityCircle = new google.maps.Circle({
+                          routeArrComplete.push(routeObj);
+
+                          const vehicleCircle = new google.maps.Circle({
+                            strokeColor: "#000",
+                            strokeOpacity: 0.8,
+                            strokeWeight: 2,
+                            fillColor: "#FF0000",
+                            fillOpacity: 0.35,
+                            map,
+                            center: currentVehicleLocation,
+                            radius: 45,
+                          });
+                          const routeCircle = new google.maps.Circle({
                             strokeColor: "#000",
                             strokeOpacity: 0.8,
                             strokeWeight: 2,
                             fillColor: "#FFF",
                             fillOpacity: 0.35,
                             map,
-                            center: routeObj[i],
-                            radius: 1000,
+                            center: routeArrComplete[i],
+                            radius: 25,
                           });
+                          // return routeArrComplete;
                         }
+                        console.log(routeArrComplete);
                       }
                       initMap(routeArr);
                     }
