@@ -26,14 +26,23 @@ $(document).ready(() => {
             var vehicleArr = [];
             var vehicleObj;
             var vehicleLocation;
+
+            // console.log(vehicleInfo);
             var vehicleInfoAbb =
               vehicleInfo.Siri.ServiceDelivery.VehicleMonitoringDelivery
                 .VehicleActivity;
-            // console.log(vehicleInfoAbb);
+            console.log(vehicleInfoAbb);
+
+            // beginning of for loop for vehicleArr
             for (var i = 0; i < vehicleInfoAbb.length; i++) {
               vehicleObj = {};
               vehicleLocation = {};
 
+              // converting time into milliseconds before pushing into array
+              var event = new Date(vehicleInfoAbb[i].RecordedAtTime);
+              var vehicleMilliTime = Date.parse(event.toString());
+
+              vehicleObj["time"] = vehicleMilliTime;
               vehicleObj["stopname"] =
                 vehicleInfoAbb[
                   i
@@ -56,6 +65,7 @@ $(document).ready(() => {
                 vehicleInfoAbb[i].MonitoredVehicleJourney.DirectionRef;
               vehicleArr.push(vehicleObj);
             }
+            console.log(vehicleArr);
 
             // // need else to catch the err or operators without lines running at this time
             var table = new Tabulator("#example-table", {
@@ -63,6 +73,7 @@ $(document).ready(() => {
               height: 205, // set height of table (in CSS or here), this enables the Virtual DOM and improves render speed dramatically (can be any valid css height value)
               layout: "fitColumns", //fit columns to width of table (optional)
               placeholder: "No data set",
+              selectable: 1,
               columns: [
                 //Define Table Columns
                 { title: "Name", field: "destination" },
@@ -94,46 +105,13 @@ $(document).ready(() => {
                     } else {
                       // takes the routes api and shows each point in which it'll stop
 
-                      console.log(row._row.data.location);
-                      // distance equation
-                      function calcCrow(lat1, lon1, lat2, lon2) {
-                        var R = 6371; // km
-                        var dLat = toRad(lat2 - lat1);
-                        var dLon = toRad(lon2 - lon1);
-                        var lat1 = toRad(lat1);
-                        var lat2 = toRad(lat2);
-
-                        var a =
-                          Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-                          Math.sin(dLon / 2) *
-                            Math.sin(dLon / 2) *
-                            Math.cos(lat1) *
-                            Math.cos(lat2);
-                        var c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-                        var d = R * c;
-                        return d;
-                      }
-
-                      // Converts numeric degrees to radians
-                      function toRad(Value) {
-                        return (Value * Math.PI) / 180;
-                      }
+                      console.log(currentVehicleLocation);
 
                       var routeArr =
                         routeData.Contents.dataObjects.ScheduledStopPoint;
-                      var originLat = JSON.parse(routeArr[0].Location.Latitude);
-                      var originLng = JSON.parse(
-                        routeArr[0].Location.Longitude
-                      );
-                      var destinationLat = JSON.parse(
-                        routeArr[routeArr.length - 1].Location.Latitude
-                      );
-                      var destinationLng = JSON.parse(
-                        routeArr[routeArr.length - 1].Location.Longitude
-                      );
 
+                      // beginning of map
                       function initMap() {
-                        // Create the map.
                         const map = new google.maps.Map(
                           document.getElementById("map"),
                           {
@@ -141,16 +119,8 @@ $(document).ready(() => {
                             center: currentVehicleLocation,
                           }
                         );
-                        console.log(routeArr);
                         var routeObj;
                         var routeArrComplete = [];
-
-                        // // marker
-                        // new google.maps.Marker({
-                        //   position: vehicleObj.location,
-                        //   map,
-                        //   title: "Hello World!",
-                        // });
 
                         for (let i = 0; i < routeArr.length; i++) {
                           routeObj = {};
@@ -184,7 +154,71 @@ $(document).ready(() => {
                           });
                           // return routeArrComplete;
                         }
-                        console.log(routeArrComplete);
+                        var vehicleStopName = row._row.data.stopname;
+                        setTimeout(geocode, 0);
+                        function geocode() {
+                          var location = vehicleStopName;
+                          axios
+                            .get(
+                              "https://maps.googleapis.com/maps/api/geocode/json",
+                              {
+                                params: {
+                                  address: location,
+                                  key:
+                                    "AIzaSyCCCWRpVSxg1uUHP_SEzNr-0UcLGs6P820",
+                                },
+                              }
+                            )
+                            .then((stopRef) => {
+                              var stopLocation =
+                                stopRef.data.results[0].geometry.location;
+
+                              var t2 = row._row.data.time / 1000000;
+                              var lat2 = row._row.data.location.lat;
+                              var lon2 = row._row.data.location.lng;
+                              var t1 = Date.now() / 1000000;
+                              var lat1 = stopLocation.lat;
+                              var lon1 = stopLocation.lng;
+
+                              calcCrow(t1, lat1, lon1, t2, lat2, lon2);
+
+                              // distance equation
+                              function calcCrow(
+                                t1,
+                                lat1,
+                                lon1,
+                                t2,
+                                lat2,
+                                lon2
+                              ) {
+                                var R = 6371; // km
+                                var dLat = toRad(lat2 - lat1);
+                                var dLon = toRad(lon2 - lon1);
+                                var lat1 = toRad(lat1);
+                                var lat2 = toRad(lat2);
+
+                                var a =
+                                  Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+                                  Math.sin(dLon / 2) *
+                                    Math.sin(dLon / 2) *
+                                    Math.cos(lat1) *
+                                    Math.cos(lat2);
+                                var c =
+                                  2 *
+                                  Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+                                var d = R * c;
+                                var speed = Math.abs(d / (t2 - t1));
+                                // return speed;
+                                console.log(speed);
+                              }
+                              // Converts numeric degrees to radians
+                              function toRad(Value) {
+                                return (Value * Math.PI) / 180;
+                              }
+                              // end of speed
+                            })
+                            .catch((err) => console.log(err));
+                        }
                       }
                       initMap(routeArr);
                     }
