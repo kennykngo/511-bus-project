@@ -122,38 +122,7 @@ $(document).ready(() => {
                         var routeObj;
                         var routeArrComplete = [];
 
-                        for (let i = 0; i < routeArr.length; i++) {
-                          routeObj = {};
-                          routeObj["lat"] = JSON.parse(
-                            routeArr[i].Location.Latitude
-                          );
-                          routeObj["lng"] = JSON.parse(
-                            routeArr[i].Location.Longitude
-                          );
-                          routeArrComplete.push(routeObj);
-
-                          const vehicleCircle = new google.maps.Circle({
-                            strokeColor: "#000",
-                            strokeOpacity: 0.8,
-                            strokeWeight: 2,
-                            fillColor: "#FF0000",
-                            fillOpacity: 0.35,
-                            map,
-                            center: currentVehicleLocation,
-                            radius: 45,
-                          });
-                          const routeCircle = new google.maps.Circle({
-                            strokeColor: "#000",
-                            strokeOpacity: 0.8,
-                            strokeWeight: 2,
-                            fillColor: "#FFF",
-                            fillOpacity: 0.35,
-                            map,
-                            center: routeArrComplete[i],
-                            radius: 25,
-                          });
-                          // return routeArrComplete;
-                        }
+                        // stopname
                         var vehicleStopName = row._row.data.stopname;
                         setTimeout(geocode, 0);
                         function geocode() {
@@ -173,14 +142,18 @@ $(document).ready(() => {
                               var stopLocation =
                                 stopRef.data.results[0].geometry.location;
 
-                              var t2 = row._row.data.time / 1000000;
+                              var t2 = row._row.data.time / 1000;
                               var lat2 = row._row.data.location.lat;
                               var lon2 = row._row.data.location.lng;
-                              var t1 = Date.now() / 1000000;
+                              var t1 = Date.now() / 1000;
                               var lat1 = stopLocation.lat;
                               var lon1 = stopLocation.lng;
 
-                              calcCrow(t1, lat1, lon1, t2, lat2, lon2);
+                              var speed = JSON.stringify(
+                                Math.floor(
+                                  calcCrow(t1, lat1, lon1, t2, lat2, lon2)
+                                )
+                              );
 
                               // distance equation
                               function calcCrow(
@@ -196,7 +169,6 @@ $(document).ready(() => {
                                 var dLon = toRad(lon2 - lon1);
                                 var lat1 = toRad(lat1);
                                 var lat2 = toRad(lat2);
-
                                 var a =
                                   Math.sin(dLat / 2) * Math.sin(dLat / 2) +
                                   Math.sin(dLon / 2) *
@@ -207,17 +179,66 @@ $(document).ready(() => {
                                   2 *
                                   Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
                                 var d = R * c;
-                                var speed = Math.abs(d / (t2 - t1));
-                                // return speed;
-                                console.log(speed);
+                                var speed = Math.abs(d / (t2 - t1)) * 360;
+                                return speed;
                               }
-                              // Converts numeric degrees to radians
                               function toRad(Value) {
                                 return (Value * Math.PI) / 180;
                               }
                               // end of speed
+                              console.log(speed);
+
+                              let vehicleCircle = new google.maps.Circle({
+                                strokeColor: "#000",
+                                strokeOpacity: 0.8,
+                                strokeWeight: 2,
+                                fillColor: "#FF0000",
+                                fillOpacity: 0.35,
+                                map,
+                                center: currentVehicleLocation,
+                                radius: 45,
+                                clickable: true,
+                              });
+
+                              var infoWindow = new google.maps.InfoWindow({
+                                content: `<p>${speed}mph</p>`,
+                              });
+
+                              //add a click event to the circle
+                              google.maps.event.addListener(
+                                vehicleCircle,
+                                "click",
+                                function (ev) {
+                                  infoWindow.setPosition(ev.latLng);
+                                  infoWindow.open(map);
+                                }
+                              );
                             })
                             .catch((err) => console.log(err));
+                        }
+
+                        // circle routes
+                        for (let i = 0; i < routeArr.length; i++) {
+                          routeObj = {};
+                          routeObj["lat"] = JSON.parse(
+                            routeArr[i].Location.Latitude
+                          );
+                          routeObj["lng"] = JSON.parse(
+                            routeArr[i].Location.Longitude
+                          );
+                          routeArrComplete.push(routeObj);
+
+                          const routeCircle = new google.maps.Circle({
+                            strokeColor: "#000",
+                            strokeOpacity: 0.8,
+                            strokeWeight: 2,
+                            fillColor: "#FFF",
+                            fillOpacity: 0.35,
+                            map,
+                            center: routeArrComplete[i],
+                            radius: 25,
+                          });
+                          // return routeArrComplete;
                         }
                       }
                       initMap(routeArr);
@@ -237,30 +258,6 @@ $(document).ready(() => {
     });
 });
 
-// $.ajax({
-//   type: "GET",
-//   url: `http://api.511.org/transit/StopMonitoring?api_key=4f536c63-2e63-429d-9261-fb091e63e5f8&agency=SF`,
-//   dataType: "json",
-//   success: (res) => {
-//     console.log(
-//       res.ServiceDelivery.StopMonitoringDelivery.MonitoredStopVisit[0]
-//     );
-//     console.log(
-//       res.ServiceDelivery.StopMonitoringDelivery.MonitoredStopVisit[0]
-//         .MonitoredVehicleJourney.MonitoredCall
-//     );
-
-//     // if (!res) {
-//     //   console.log("no worky");
-//     // } else {
-//     //   console.log(res);
-//     // }
-//   },
-// });
-
-//load sample data into the table
-// table.setData(lineData);
-
 // top menu , side nav bar -->
 // google maps and tables onto the page
 // Display the buses and the information, rather than just the location of the bus
@@ -278,11 +275,3 @@ $(document).ready(() => {
 // 6) calculate the average speed of the bus between stops
 // 7) Show the agency buses on the table
 // 8) On click, show the selected bus on the map
-
-// var table = new Tabulator("#example-table", {
-//   rowFormatter:function(row){
-//       if(row.getData().age >= 18){
-//           row.getElement().classList.add("success"); //mark rows with age greater than or equal to 18 as successful;
-//       }
-//   },
-// });
