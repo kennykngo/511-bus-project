@@ -1,6 +1,9 @@
 #map {
   height: 50%;
   bottom: 0px;
+  width: 83%;
+  margin: auto;
+  align-items: center;
   /* top: 50%; */
 }
 html,
@@ -8,4 +11,8 @@ body {
   height: 100%;
   margin: 0;
   padding: 0;
+}
+
+.top-2 {
+  top: 2%;
 }

@@ -76,7 +76,11 @@ $(document).ready(() => {
               selectable: 1,
               columns: [
                 //Define Table Columns
-                { title: "Name", field: "destination" },
+                {
+                  title: "Name",
+                  field: "destination",
+                  alignEmptyValues: "bottom",
+                },
                 {
                   title: "Bus Name",
                   field: "id",
@@ -109,9 +113,12 @@ $(document).ready(() => {
 
                       var routeArr =
                         routeData.Contents.dataObjects.ScheduledStopPoint;
+                      var stopname = row._row.data.stopname;
+                      var busName = row._row.data.id;
 
                       // beginning of map
                       function initMap() {
+                        console.log(routeArr);
                         const map = new google.maps.Map(
                           document.getElementById("map"),
                           {
@@ -187,7 +194,7 @@ $(document).ready(() => {
                               }
                               // end of speed
                               console.log(speed);
-
+                              console.log(routeArrComplete);
                               let vehicleCircle = new google.maps.Circle({
                                 strokeColor: "#000",
                                 strokeOpacity: 0.8,
@@ -201,7 +208,7 @@ $(document).ready(() => {
                               });
 
                               var infoWindow = new google.maps.InfoWindow({
-                                content: `<p>${speed}mph</p>`,
+                                content: `<h4>${stopname}</h4><h6>Bus Id: ${busName}</h6><p>${speed} mph</p>`,
                               });
 
                               //add a click event to the circle
