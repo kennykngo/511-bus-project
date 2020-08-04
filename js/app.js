@@ -65,7 +65,7 @@ $(document).ready(() => {
                 vehicleInfoAbb[i].MonitoredVehicleJourney.DirectionRef;
               vehicleArr.push(vehicleObj);
             }
-            console.log(vehicleArr);
+            console.log("vehicleArr", vehicleArr);
 
             // // need else to catch the err or operators without lines running at this time
             var table = new Tabulator("#example-table", {
@@ -108,9 +108,12 @@ $(document).ready(() => {
                       console.log("no worky");
                     } else {
                       // takes the routes api and shows each point in which it'll stop
-
-                      console.log(currentVehicleLocation);
-
+                      console.log(
+                        currentVehicleLocation,
+                        "currentVehicleLocation"
+                      );
+                      var vehicleLocationLat = currentVehicleLocation.lat;
+                      var vehicleLocationLng = currentVehicleLocation.lng;
                       var routeArr =
                         routeData.Contents.dataObjects.ScheduledStopPoint;
                       var stopname = row._row.data.stopname;
@@ -131,6 +134,8 @@ $(document).ready(() => {
 
                         // stopname
                         var vehicleStopName = row._row.data.stopname;
+                        console.log(vehicleStopName, "vehicleStopName");
+
                         setTimeout(geocode, 0);
                         function geocode() {
                           var location = vehicleStopName;
@@ -146,16 +151,18 @@ $(document).ready(() => {
                               }
                             )
                             .then((stopRef) => {
+                              console.log(stopRef, "stopRef");
                               var stopLocation =
                                 stopRef.data.results[0].geometry.location;
-
-                              var t2 = row._row.data.time / 1000;
-                              var lat2 = row._row.data.location.lat;
-                              var lon2 = row._row.data.location.lng;
-                              var t1 = Date.now() / 1000;
+                              console.log(stopLocation, "stopLocation");
+                              var t2 = Date.now() / 1000;
+                              var lat2 = vehicleLocationLat;
+                              var lon2 = vehicleLocationLng;
+                              var t1 = row._row.data.time / 1000;
                               var lat1 = stopLocation.lat;
                               var lon1 = stopLocation.lng;
 
+                              console.log(t2, t1, "Date.now(), row._time");
                               var speed = JSON.stringify(
                                 Math.floor(
                                   calcCrow(t1, lat1, lon1, t2, lat2, lon2)
@@ -186,7 +193,8 @@ $(document).ready(() => {
                                   2 *
                                   Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
                                 var d = R * c;
-                                var speed = Math.abs(d / (t2 - t1)) * 360;
+                                var speed =
+                                  Math.abs(d / (t2 - t1)) * 3600 * 0.621;
                                 return speed;
                               }
                               function toRad(Value) {
@@ -254,7 +262,7 @@ $(document).ready(() => {
                 });
               },
             });
-          }
+          } // else {} for 2nd AJAX
         });
         // }
         // setInterval(fetchdata, 2000);
