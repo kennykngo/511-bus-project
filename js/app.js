@@ -47,6 +47,10 @@ $(document).ready(() => {
               var event = new Date(vehicleInfoAbb[i].RecordedAtTime);
               var vehicleMilliTime = Date.parse(event.toString());
 
+              vehicleObj["onwardCall"] =
+                vehicleInfoAbb[
+                  i
+                ].MonitoredVehicleJourney.OnwardCalls.OnwardCall;
               vehicleObj["time"] = vehicleMilliTime;
               vehicleObj["stopname"] =
                 vehicleInfoAbb[
@@ -105,6 +109,7 @@ $(document).ready(() => {
                 var currentVehicleLocation = clickedVehicle.location;
                 var clickedVehicleStopname = clickedVehicle.stopname;
                 var clickedBusId = clickedVehicle.id;
+                var clickedBusOnward = clickedVehicle.onwardCall;
                 console.log("clickedVehicle", clickedVehicle);
                 console.log("clickedVehicle.id", clickedVehicle.id);
                 console.log("currentVehicleLocation", currentVehicleLocation);
@@ -112,12 +117,13 @@ $(document).ready(() => {
                   type: "GET",
                   url: `http://api.511.org/transit/stops?api_key=4f536c63-2e63-429d-9261-fb091e63e5f8&operator_id=${operatorVal}&line_id=${
                     row.getData().id
-                  }`,
+                  }&Direction_id=${row.getData().direction}`,
                   dataType: "json",
                   success: (routeData) => {
                     if (!routeData) {
                       console.log("no worky");
                     } else {
+                      console.log(routeData);
                       // takes the routes api and shows each point in which it'll stop
                       var vehicleLocationLat = currentVehicleLocation.lat;
                       var vehicleLocationLng = currentVehicleLocation.lng;
@@ -135,7 +141,6 @@ $(document).ready(() => {
                       );
                       console.log("routeArr", routeArr);
 
-                      // need the stopname of vehicle to match routeArrComplete's name
                       // adds lat and lng
                       for (let i = 0; i < routeArr.length; i++) {
                         routeArr[i].Location["lat"] = JSON.parse(
@@ -156,36 +161,48 @@ $(document).ready(() => {
                         routeStopLng
                       );
 
-                      // halves the routes and depicts the routes
-                      let routeArrComplete = [];
-                      let routeIBOBArr;
-                      if (
-                        clickedVehicle.direction == "OB" ||
-                        clickedVehicle.direction == "S"
+                      // generates routePathArr if there are onwardcalls
+                      var routePathArr = [];
+                      var routePathObj;
+                      var routePathLocationObj;
+                      for (
+                        let index = 0;
+                        index < clickedBusOnward.length;
+                        index++
                       ) {
-                        routeIBOBArr = routeArr.slice().reverse();
-                        console.log(routeIBOBArr);
-                        for (let i = 0; i < routeArr.length; i += 2) {
-                          routeArrComplete.push(routeIBOBArr[i]);
-                        }
-                      } else {
-                        routeIBOBArr = routeArr;
-                        for (let i = 0; i < routeArr.length; i += 2) {
-                          routeArrComplete.push(routeIBOBArr[i]);
+                        for (let i = 0; i < routeArr.length; i++) {
+                          if (
+                            clickedBusOnward[index].StopPointName ==
+                            routeArr[i].Name
+                          ) {
+                            routePathObj = {};
+                            // routePathLocationObj = {};
+
+                            routePathObj["lat"] = routeArr[i].Location.lat;
+                            routePathObj["lng"] = routeArr[i].Location.lng;
+                            // routePathLocationObj["lat"] =
+                            //   routeArr[i].Location.lat;
+                            // routePathLocationObj["lng"] =
+                            //   routeArr[i].Location.lng;
+                            // routePathObj["location"] = routePathLocationObj;
+                            // routePathObj["name"] = routeArr[i].Name;
+                            routePathArr.push(routePathObj);
+                          }
                         }
                       }
+                      console.log("routePathArr", routePathArr);
+                      // end of routePathArr
 
                       let routeArrCircle = [];
-                      for (let i = 0; i < routeArrComplete.length; i++) {
+                      for (let i = 0; i < routeArr.length; i++) {
                         routeObj = {};
-                        routeObj["lat"] = routeArrComplete[i].Location.lat;
-                        routeObj["lng"] = routeArrComplete[i].Location.lng;
+                        routeObj["lat"] = routeArr[i].Location.lat;
+                        routeObj["lng"] = routeArr[i].Location.lng;
                         routeArrCircle.push(routeObj);
                       }
 
-                      console.log(routeArrCircle);
+                      console.log("routeArrCircle", routeArrCircle);
 
-                      // beginning of map
                       function initMap() {
                         console.log(
                           "currentVehicleLocation",
@@ -237,11 +254,6 @@ $(document).ready(() => {
                         }
                         // end of speed
                         console.log("speed", speed);
-                        console.log("routeArrComplete", routeArrComplete);
-
-                        // $(".tabulator-row").on("click", () => {
-                        //   console.log("Clicked");
-                        // });
 
                         // vehicleMarker
                         var vehicleMarker = new google.maps.Marker({
@@ -254,14 +266,18 @@ $(document).ready(() => {
                             scaledSize: new google.maps.Size(60, 60),
                           },
                         });
+                        console.log("routeArrPath", routePathArr);
 
+                        // for (let i = 0; i < routePathArr.length; i++) {
                         const vehiclePath = new google.maps.Polyline({
-                          path: routeArrCircle,
-                          // geodesic: true,
+                          path: routePathArr,
+                          // flightPlanCoordinates,
+                          geodesic: true,
                           strokeColor: "#FF0000",
                           strokeOpacity: 1.0,
                           strokeWeight: 2,
                         });
+                        // }
 
                         vehiclePath.setMap(map);
 
@@ -281,7 +297,7 @@ $(document).ready(() => {
 
                         // beginning of circle routes
                         // routes with just lng + lat
-                        for (let i = 0; i < routeArrComplete.length; i++) {
+                        for (let i = 0; i < routeArr.length; i++) {
                           // route path
                           const routeCircle = new google.maps.Circle({
                             strokeColor: "#000",
@@ -294,6 +310,8 @@ $(document).ready(() => {
                             radius: 25,
                           });
                         }
+
+                        console.log("routeArrCircle", routeArrCircle);
                         // end of circle routes
 
                         // directionsRenderer.setMap(map);
@@ -309,7 +327,7 @@ $(document).ready(() => {
                         // return routeArrCircle;
                       }
 
-                      initMap(routeArrComplete);
+                      initMap(routeArr);
 
                       // function calculateAndDisplayRoute(
                       //   directionsService,
@@ -350,6 +368,15 @@ $(document).ready(() => {
     .catch((err) => {
       if (err) throw err;
     });
+
+  // $.ajax({
+  //   type: "GET",
+  //   url:
+  //     "http://api.511.org/transit/stopplaces?api_key=4f536c63-2e63-429d-9261-fb091e63e5f8&operator_id=SF",
+  //   dataType: "json",
+  // }).then((res) => {
+  //   console.log(res);
+  // });
 });
 
 // top menu , side nav bar -->
