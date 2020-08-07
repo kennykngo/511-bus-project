@@ -1,58 +1,91 @@
 function initMap() {
-  // Create the map.
+  const directionsService = new google.maps.DirectionsService();
+  const directionsRenderer = new google.maps.DirectionsRenderer();
   const map = new google.maps.Map(document.getElementById("map"), {
-    zoom: 15,
-    center: { lat: 37.7749, lng: -122.4194 }, // SF
+    zoom: 7,
+    center: {
+      lat: 41.85,
+      lng: -87.65,
+    },
   });
+  directionsRenderer.setMap(map);
 
-  const vehiclePlanCoordinates = [
-    { lat: 37.772, lng: -122.214 },
-    { lat: 21.291, lng: -157.821 },
-    { lat: -18.142, lng: 178.431 },
-    { lat: -27.467, lng: 153.027 },
-  ];
-  const vehiclePath = new google.maps.Polyline({
-    path: vehiclePlanCoordinates,
-    geodesic: true,
-    strokeColor: "#FF0000",
-    strokeOpacity: 1.0,
-    strokeWeight: 2,
-  });
-  vehiclePath.setMap(map);
-
-  var vehicleRoute = {
-    chicago: {
-      center: { lat: 41.878, lng: -87.629 },
-      population: 2714856,
-    },
-    newyork: {
-      center: { lat: 40.714, lng: -74.005 },
-      population: 8405837,
-    },
-    losangeles: {
-      center: { lat: 34.052, lng: -118.243 },
-      population: 3857799,
-    },
-    vancouver: {
-      center: { lat: 49.25, lng: -123.1 },
-      population: 603502,
-    },
+  const onChangeHandler = function () {
+    calculateAndDisplayRoute(directionsService, directionsRenderer);
   };
 
-  for (var city in vehicleRoute) {
-    const cityCircle = new google.maps.Circle({
-      strokeColor: "#000",
-      strokeOpacity: 0.8,
-      strokeWeight: 2,
-      fillColor: "#FFF",
-      fillOpacity: 0.35,
-      map,
-      center: vehicleRoute[city].center,
-      radius: 100,
-      // radius: Math.sqrt(vehicleRoute[city].population) * 100,
-    });
-  }
+  onChangeHandler();
 }
+
+function calculateAndDisplayRoute(directionsService, directionsRenderer) {
+  var start = new google.maps.LatLng(41.850033, -87.6500523);
+  var end = new google.maps.LatLng(37.7749, -122.4194);
+  directionsService.route(
+    {
+      origin: start,
+      destination: end,
+      travelMode: google.maps.TravelMode.DRIVING,
+    },
+    (response, status) => {
+      if (status === "OK") {
+        directionsRenderer.setDirections(response);
+      } else {
+        window.alert("Directions request failed due to " + status);
+      }
+    }
+  );
+}
+
+// function initMap() {
+//   // Create the map.
+//   const map = new google.maps.Map(document.getElementById("map"), {
+//     zoom: 15,
+//     center: { lat: 37.7749, lng: -122.4194 }, // SF
+//   });
+
+//   const vehiclePlanCoordinates = [{ lat: 37.772, lng: -122.214 }];
+//   const vehiclePath = new google.maps.Polyline({
+//     path: vehiclePlanCoordinates,
+//     geodesic: true,
+//     strokeColor: "#FF0000",
+//     strokeOpacity: 1.0,
+//     strokeWeight: 2,
+//   });
+
+//   vehiclePath.setMap(map);
+
+//   var vehicleRoute = {
+//     chicago: {
+//       center: { lat: 41.878, lng: -87.629 },
+//       population: 2714856,
+//     },
+//     newyork: {
+//       center: { lat: 40.714, lng: -74.005 },
+//       population: 8405837,
+//     },
+//     losangeles: {
+//       center: { lat: 34.052, lng: -118.243 },
+//       population: 3857799,
+//     },
+//     vancouver: {
+//       center: { lat: 49.25, lng: -123.1 },
+//       population: 603502,
+//     },
+//   };
+
+//   for (var city in vehicleRoute) {
+//     const cityCircle = new google.maps.Circle({
+//       strokeColor: "#000",
+//       strokeOpacity: 0.8,
+//       strokeWeight: 2,
+//       fillColor: "#FFF",
+//       fillOpacity: 0.35,
+//       map,
+//       center: vehicleRoute[city].center,
+//       radius: 100,
+//     });
+//   }
+// }
 // function initMap() {
 //   const directionsRenderer = new google.maps.DirectionsRenderer();
 //   const directionsService = new google.maps.DirectionsService();

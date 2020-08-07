@@ -14,7 +14,11 @@ $(document).ready(() => {
       // displays val of options used for next AJAX
       $("#operators").on("change", function optionVal() {
         var operatorVal = $(this).val();
-        console.log(operatorVal);
+        console.log("operatorVal", operatorVal);
+
+        // // calls the function once
+        // fetchdata();
+        // // calls function continuously
         // function fetchdata() {
         $.ajax({
           type: "GET",
@@ -22,6 +26,7 @@ $(document).ready(() => {
           dataType: "json",
         }).then((vehicleInfo) => {
           if (vehicleInfo) {
+            // $("#instructions").text("Select a line option.");
             // console.log(vehicleInfo);
             var vehicleArr = [];
             var vehicleObj;
@@ -70,10 +75,11 @@ $(document).ready(() => {
             // // need else to catch the err or operators without lines running at this time
             var table = new Tabulator("#example-table", {
               data: vehicleArr,
-              height: 205, // set height of table (in CSS or here), this enables the Virtual DOM and improves render speed dramatically (can be any valid css height value)
+              height: 300, // set height of table (in CSS or here), this enables the Virtual DOM and improves render speed dramatically (can be any valid css height value)
               layout: "fitColumns", //fit columns to width of table (optional)
               placeholder: "No data set",
               selectable: 1,
+              headerBackgroundColor: "#e6e6e6",
               columns: [
                 //Define Table Columns
                 {
@@ -95,8 +101,13 @@ $(document).ready(() => {
               ],
               // identify row clicked and runs another AJAX to find route
               rowClick: function (e, row) {
-                console.log(row._row.data.id);
-                var currentVehicleLocation = row._row.data.location;
+                var clickedVehicle = row._row.data;
+                var currentVehicleLocation = clickedVehicle.location;
+                var clickedVehicleStopname = clickedVehicle.stopname;
+                var clickedBusId = clickedVehicle.id;
+                console.log("clickedVehicle", clickedVehicle);
+                console.log("clickedVehicle.id", clickedVehicle.id);
+                console.log("currentVehicleLocation", currentVehicleLocation);
                 $.ajax({
                   type: "GET",
                   url: `http://api.511.org/transit/stops?api_key=4f536c63-2e63-429d-9261-fb091e63e5f8&operator_id=${operatorVal}&line_id=${
@@ -108,141 +119,170 @@ $(document).ready(() => {
                       console.log("no worky");
                     } else {
                       // takes the routes api and shows each point in which it'll stop
-                      console.log(
-                        currentVehicleLocation,
-                        "currentVehicleLocation"
-                      );
                       var vehicleLocationLat = currentVehicleLocation.lat;
                       var vehicleLocationLng = currentVehicleLocation.lng;
+                      console.log(
+                        "vehicleLocation",
+                        vehicleLocationLat,
+                        vehicleLocationLng
+                      );
                       var routeArr =
                         routeData.Contents.dataObjects.ScheduledStopPoint;
-                      var stopname = row._row.data.stopname;
-                      var busName = row._row.data.id;
+
+                      console.log(
+                        "clickedVehicle.direction",
+                        clickedVehicle.direction
+                      );
+                      console.log("routeArr", routeArr);
+
+                      // need the stopname of vehicle to match routeArrComplete's name
+                      // adds lat and lng
+                      for (let i = 0; i < routeArr.length; i++) {
+                        routeArr[i].Location["lat"] = JSON.parse(
+                          routeArr[i].Location.Latitude
+                        );
+                        routeArr[i].Location["lng"] = JSON.parse(
+                          routeArr[i].Location.Longitude
+                        );
+                        if (clickedVehicle.stopname == routeArr[i].Name) {
+                          routeStopLat = routeArr[i].Location.lat;
+                          routeStopLng = routeArr[i].Location.lng;
+                        }
+                      }
+
+                      console.log(
+                        "routeStopLocation",
+                        routeStopLat,
+                        routeStopLng
+                      );
+
+                      // halves the routes and depicts the routes
+                      let routeArrComplete = [];
+                      let routeIBOBArr;
+                      if (
+                        clickedVehicle.direction == "OB" ||
+                        clickedVehicle.direction == "S"
+                      ) {
+                        routeIBOBArr = routeArr.slice().reverse();
+                        console.log(routeIBOBArr);
+                        for (let i = 0; i < routeArr.length; i += 2) {
+                          routeArrComplete.push(routeIBOBArr[i]);
+                        }
+                      } else {
+                        routeIBOBArr = routeArr;
+                        for (let i = 0; i < routeArr.length; i += 2) {
+                          routeArrComplete.push(routeIBOBArr[i]);
+                        }
+                      }
+
+                      let routeArrCircle = [];
+                      for (let i = 0; i < routeArrComplete.length; i++) {
+                        routeObj = {};
+                        routeObj["lat"] = routeArrComplete[i].Location.lat;
+                        routeObj["lng"] = routeArrComplete[i].Location.lng;
+                        routeArrCircle.push(routeObj);
+                      }
+
+                      console.log(routeArrCircle);
 
                       // beginning of map
                       function initMap() {
-                        console.log(routeArr);
+                        console.log(
+                          "currentVehicleLocation",
+                          currentVehicleLocation
+                        );
+                        const directionsService = new google.maps.DirectionsService();
+                        const directionsRenderer = new google.maps.DirectionsRenderer();
                         const map = new google.maps.Map(
                           document.getElementById("map"),
                           {
                             zoom: 15,
                             center: currentVehicleLocation,
+                            // currentVehicleLocation,
                           }
                         );
-                        var routeObj;
-                        var routeArrComplete = [];
 
-                        // stopname
-                        var vehicleStopName = row._row.data.stopname;
-                        console.log(vehicleStopName, "vehicleStopName");
+                        var t2 = Date.now() / 1000;
+                        var lat2 = vehicleLocationLat;
+                        var lon2 = vehicleLocationLng;
+                        var t1 = row._row.data.time / 1000;
+                        var lat1 = routeStopLat;
+                        var lon1 = routeStopLng;
 
-                        setTimeout(geocode, 0);
-                        function geocode() {
-                          var location = vehicleStopName;
-                          axios
-                            .get(
-                              "https://maps.googleapis.com/maps/api/geocode/json",
-                              {
-                                params: {
-                                  address: location,
-                                  key:
-                                    "AIzaSyCCCWRpVSxg1uUHP_SEzNr-0UcLGs6P820",
-                                },
-                              }
-                            )
-                            .then((stopRef) => {
-                              console.log(stopRef, "stopRef");
-                              var stopLocation =
-                                stopRef.data.results[0].geometry.location;
-                              console.log(stopLocation, "stopLocation");
-                              var t2 = Date.now() / 1000;
-                              var lat2 = vehicleLocationLat;
-                              var lon2 = vehicleLocationLng;
-                              var t1 = row._row.data.time / 1000;
-                              var lat1 = stopLocation.lat;
-                              var lon1 = stopLocation.lng;
+                        var speed = Math.floor(
+                          calcCrow(t1, lat1, lon1, t2, lat2, lon2)
+                        );
 
-                              console.log(t2, t1, "Date.now(), row._time");
-                              var speed = JSON.stringify(
-                                Math.floor(
-                                  calcCrow(t1, lat1, lon1, t2, lat2, lon2)
-                                )
-                              );
-
-                              // distance equation
-                              function calcCrow(
-                                t1,
-                                lat1,
-                                lon1,
-                                t2,
-                                lat2,
-                                lon2
-                              ) {
-                                var R = 6371; // km
-                                var dLat = toRad(lat2 - lat1);
-                                var dLon = toRad(lon2 - lon1);
-                                var lat1 = toRad(lat1);
-                                var lat2 = toRad(lat2);
-                                var a =
-                                  Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-                                  Math.sin(dLon / 2) *
-                                    Math.sin(dLon / 2) *
-                                    Math.cos(lat1) *
-                                    Math.cos(lat2);
-                                var c =
-                                  2 *
-                                  Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-                                var d = R * c;
-                                var speed =
-                                  Math.abs(d / (t2 - t1)) * 3600 * 0.621;
-                                return speed;
-                              }
-                              function toRad(Value) {
-                                return (Value * Math.PI) / 180;
-                              }
-                              // end of speed
-                              console.log(speed);
-                              console.log(routeArrComplete);
-                              let vehicleCircle = new google.maps.Circle({
-                                strokeColor: "#000",
-                                strokeOpacity: 0.8,
-                                strokeWeight: 2,
-                                fillColor: "#FF0000",
-                                fillOpacity: 0.35,
-                                map,
-                                center: currentVehicleLocation,
-                                radius: 45,
-                                clickable: true,
-                              });
-
-                              var infoWindow = new google.maps.InfoWindow({
-                                content: `<h4>${stopname}</h4><h6>Bus Id: ${busName}</h6><p>${speed} mph</p>`,
-                              });
-
-                              //add a click event to the circle
-                              google.maps.event.addListener(
-                                vehicleCircle,
-                                "click",
-                                function (ev) {
-                                  infoWindow.setPosition(ev.latLng);
-                                  infoWindow.open(map);
-                                }
-                              );
-                            })
-                            .catch((err) => console.log(err));
+                        // distance equation
+                        function calcCrow(t1, lat1, lon1, t2, lat2, lon2) {
+                          var R = 6371; // km
+                          var dLat = toRad(lat2 - lat1);
+                          var dLon = toRad(lon2 - lon1);
+                          var lat1 = toRad(lat1);
+                          var lat2 = toRad(lat2);
+                          var a =
+                            Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+                            Math.sin(dLon / 2) *
+                              Math.sin(dLon / 2) *
+                              Math.cos(lat1) *
+                              Math.cos(lat2);
+                          var c =
+                            2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+                          var d = R * c;
+                          var speed = Math.abs(d / (t2 - t1)) * 3600 * 0.621;
+                          return speed;
                         }
+                        function toRad(Value) {
+                          return (Value * Math.PI) / 180;
+                        }
+                        // end of speed
+                        console.log("speed", speed);
+                        console.log("routeArrComplete", routeArrComplete);
 
-                        // circle routes
-                        for (let i = 0; i < routeArr.length; i++) {
-                          routeObj = {};
-                          routeObj["lat"] = JSON.parse(
-                            routeArr[i].Location.Latitude
-                          );
-                          routeObj["lng"] = JSON.parse(
-                            routeArr[i].Location.Longitude
-                          );
-                          routeArrComplete.push(routeObj);
+                        // $(".tabulator-row").on("click", () => {
+                        //   console.log("Clicked");
+                        // });
 
+                        // vehicleMarker
+                        var vehicleMarker = new google.maps.Marker({
+                          position: currentVehicleLocation,
+                          map: map,
+                          clickable: true,
+                          icon: {
+                            url:
+                              "http://maps.google.com/mapfiles/ms/icons/bus.png",
+                            scaledSize: new google.maps.Size(60, 60),
+                          },
+                        });
+
+                        const vehiclePath = new google.maps.Polyline({
+                          path: routeArrCircle,
+                          // geodesic: true,
+                          strokeColor: "#FF0000",
+                          strokeOpacity: 1.0,
+                          strokeWeight: 2,
+                        });
+
+                        vehiclePath.setMap(map);
+
+                        var infoWindow = new google.maps.InfoWindow({
+                          content: `<h4>${clickedVehicleStopname}</h4><h6>Bus Id: ${clickedBusId}</h6><p>${speed} mph</p>`,
+                        });
+
+                        //add a click event to the marker
+                        google.maps.event.addListener(
+                          vehicleMarker,
+                          "click",
+                          function (ev) {
+                            infoWindow.setPosition(ev.latLng);
+                            infoWindow.open(map);
+                          }
+                        );
+
+                        // beginning of circle routes
+                        // routes with just lng + lat
+                        for (let i = 0; i < routeArrComplete.length; i++) {
+                          // route path
                           const routeCircle = new google.maps.Circle({
                             strokeColor: "#000",
                             strokeOpacity: 0.8,
@@ -250,22 +290,61 @@ $(document).ready(() => {
                             fillColor: "#FFF",
                             fillOpacity: 0.35,
                             map,
-                            center: routeArrComplete[i],
+                            center: routeArrCircle[i],
                             radius: 25,
                           });
-                          // return routeArrComplete;
                         }
+                        // end of circle routes
+
+                        // directionsRenderer.setMap(map);
+
+                        // const onChangeHandler = function () {
+                        //   calculateAndDisplayRoute(
+                        //     directionsService,
+                        //     directionsRenderer
+                        //   );
+                        // };
+
+                        // onChangeHandler();
+                        // return routeArrCircle;
                       }
-                      initMap(routeArr);
+
+                      initMap(routeArrComplete);
+
+                      // function calculateAndDisplayRoute(
+                      //   directionsService,
+                      //   directionsRenderer
+                      // ) {
+                      //   var start = routeArrCircle[0];
+                      //   var end = routeArrCircle[routeArrCircle.length - 1];
+                      //   directionsService.route(
+                      //     {
+                      //       origin: start,
+                      //       destination: end,
+                      //       travelMode: google.maps.TravelMode.TRANSIT,
+                      //     },
+                      //     (response, status) => {
+                      //       if (status === "OK") {
+                      //         directionsRenderer.setDirections(response);
+                      //       } else {
+                      //         window.alert(
+                      //           "Directions request failed due to " + status
+                      //         );
+                      //       }
+                      //     }
+                      //   );
+                      // }
                     }
                   },
                 });
               },
             });
-          } // else {} for 2nd AJAX
+          } /* else {
+            $("#instructions").text("Operator not available.");
+          // } // else {} for 2nd AJAX */
         });
         // }
-        // setInterval(fetchdata, 2000);
+        // setInterval(fetchdata, 30000);
       });
     })
     .catch((err) => {
